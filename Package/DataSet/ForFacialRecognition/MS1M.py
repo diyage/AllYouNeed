@@ -6,7 +6,7 @@ from Package.BaseDev import CV2
 import torch
 
 
-class MS1M(Dataset):
+class MS1MDataSet(Dataset):
     def __init__(
             self,
             root: str,
@@ -57,7 +57,7 @@ def get_ms1m_data_loader(
         batch_size: int = 128,
         num_workers: int = 8
 ) -> DataLoader:
-    ms1m = MS1M(
+    ms1m = MS1MDataSet(
         root,
         trans
     )
