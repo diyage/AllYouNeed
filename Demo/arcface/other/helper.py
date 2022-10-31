@@ -29,13 +29,13 @@ class ArcFaceHelper:
             model
         )
         self.predictor_for_eval = ArcFacePredictor(
-            use_l2_norm_feature=self.config.use_l2_norm_feature
+            use_l2_norm_feature=self.config.eval_config.use_l2_norm_feature
         )
         self.my_evaluator = ArcFaceEvaluator(
             model,
             self.predictor_for_eval,
-            compute_threshold_num=self.config.compute_threshold_num,
-            distance_type=self.config.distance_type
+            compute_threshold_num=self.config.eval_config.compute_threshold_num,
+            distance_type=self.config.eval_config.distance_type
         )
 
     def restore(
@@ -81,19 +81,19 @@ class ArcFaceHelper:
 
         sgd_optimizer = torch.optim.SGD(
             self.model.parameters(),
-            lr=self.config.lr,
+            lr=self.config.train_config.lr,
             momentum=0.9,
             weight_decay=5e-4
         )
         warm_optimizer = WarmUpCosineAnnealOptimizer(
             sgd_optimizer,
-            max_epoch_for_train=self.config.max_epoch_for_train,
-            base_lr=self.config.lr,
-            warm_up_end_epoch=self.config.warm_up_end_epoch
+            max_epoch_for_train=self.config.train_config.max_epoch_for_train,
+            base_lr=self.config.train_config.lr,
+            warm_up_end_epoch=self.config.train_config.warm_up_end_epoch
         )
 
         for epoch in tqdm(range(self.restore_epoch+1,
-                                self.config.max_epoch_for_train),
+                                self.config.train_config.max_epoch_for_train),
                           desc='training',
                           position=0):
 
@@ -116,6 +116,6 @@ class ArcFaceHelper:
                 print_info += '{:^30}:{:^15.6f}.\n'.format(key, val)
             tqdm.write(print_info)
 
-            if epoch % self.config.eval_frequency == 0:
+            if epoch % self.config.eval_config.eval_frequency == 0:
                 self.save(epoch)
                 self.eval_acc(data_loader_test, data_pair)
