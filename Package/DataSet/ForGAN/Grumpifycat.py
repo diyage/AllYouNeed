@@ -9,14 +9,14 @@ class GrumpCatDataSet(Dataset):
     def __init__(
             self,
             root: str,
+            train: bool,
             transform: alb.Compose,
-            training: bool = True,
             training_rate: float = 0.8
     ):
         super().__init__()
         self.root = root
         self.transform = transform
-        self.training = training
+        self.training = train
         self.training_rate = training_rate
         self.images_path = self.__get_images_path()
 
@@ -75,20 +75,20 @@ class GrumpCatDataSet(Dataset):
 
 def get_grump_cat_data_loader(
         root: str,
+        train: bool,
         transform: alb.Compose,
-        training: bool,
         batch_size: int,
         num_workers: int = 0,
 ) -> DataLoader:
     data_set = GrumpCatDataSet(
         root,
+        train,
         transform,
-        training,
     )
     data_loader = DataLoader(
         data_set,
         batch_size=batch_size,
-        shuffle=training,
+        shuffle=train,
         num_workers=num_workers
     )
     return data_loader
@@ -108,8 +108,9 @@ def debug_data_loader():
     ])
     data_set = GrumpCatDataSet(
         root,
-        trans,
         True,
+        trans,
+
     )
     a, b = data_set.pull_two_images(10)
     CV2.imshow('a', a)
