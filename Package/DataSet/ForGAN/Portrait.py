@@ -92,6 +92,7 @@ def get_portrait_data_loader(
         root: str,
         train: bool,
         transform: alb.Compose,
+        strict_pair: bool,
         batch_size: int,
         num_workers: int = 0,
 ) -> DataLoader:
@@ -99,6 +100,7 @@ def get_portrait_data_loader(
         root,
         train,
         transform,
+        strict_pair=strict_pair,
     )
     data_loader = DataLoader(
         data_set,
