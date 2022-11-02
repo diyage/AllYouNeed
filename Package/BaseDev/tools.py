@@ -76,7 +76,7 @@ class BaseTool:
         img = np.transpose(img, axes=(1, 2, 0))  # type:np.ndarray
         # (H, W, C)
         img = ((img * std) + mean) * 255.0
-        img = np.array(img, np.uint8)  # type:np.ndarray
-        # img = CV2.cvtColorToBGR(img)
+        img = img.astype(np.uint8).copy()  # type:np.ndarray
+
         return img
 
