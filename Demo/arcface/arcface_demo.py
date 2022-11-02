@@ -28,6 +28,10 @@ if __name__ == '__main__':
             get data
     """
     trans_train = alb.Compose([
+        alb.HueSaturationValue(),
+        alb.RandomBrightnessContrast(),
+        alb.Rotate(limit=(-15, 15)),
+        alb.HorizontalFlip(),
         alb.Resize(112, 112),
         alb.Normalize(
             mean=[0.5, 0.5, 0.5],
@@ -66,7 +70,7 @@ if __name__ == '__main__':
         model,
         config
     )
-
+    helper.restore(60)
     helper.go(ms1m_train_loader, lfw_test_loader, data_pair)
 
 
