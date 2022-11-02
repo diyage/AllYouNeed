@@ -8,6 +8,31 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 if __name__ == '__main__':
+    """
+    we train ArcFace from epoch 0 to 60 with data augmentation:
+                trans_train = alb.Compose([
+                alb.Resize(112, 112),
+                alb.Normalize(
+                    mean=[0.5, 0.5, 0.5],
+                    std=[0.5, 0.5, 0.5]
+                )
+            ])
+    
+    and from epoch 60 to 70 with data augmentation:
+    trans_train = alb.Compose([
+                alb.HueSaturationValue(),
+                alb.RandomBrightnessContrast(),
+                alb.Rotate(limit=(-15, 15)),
+                alb.HorizontalFlip(),
+                alb.Resize(112, 112),
+                alb.Normalize(
+                    mean=[0.5, 0.5, 0.5],
+                    std=[0.5, 0.5, 0.5]
+                )
+            ])
+    train on ms1m
+    accuracy on LFW 99.333%
+    """
     GPU_ID = 1
 
     config = ArcFaceConfig()
@@ -70,7 +95,8 @@ if __name__ == '__main__':
         model,
         config
     )
-    helper.restore(60)
-    helper.go(ms1m_train_loader, lfw_test_loader, data_pair)
+    helper.restore(70)
+    helper.eval_acc(lfw_test_loader, data_pair)
+    # helper.go(ms1m_train_loader, lfw_test_loader, data_pair)
 
 
