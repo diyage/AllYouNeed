@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 import numpy as np
 from abc import abstractmethod
-from temp3 import MobileFaceNet
 from typing import List, Tuple
 DATA_PAIR_TYPE = List[List]
 
