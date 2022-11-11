@@ -1,3 +1,4 @@
+from .collection import FirstLevelCollection, SecondLevelCollection, ThirdLevelCollection
 from .cv2_ import CV2
 from .evaluator import BaseEvaluator
 from .loss import BaseLoss
