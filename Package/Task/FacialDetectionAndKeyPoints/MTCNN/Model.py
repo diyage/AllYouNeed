@@ -16,6 +16,7 @@ class MTCNNModel(DevModel):
             'r': r_net,
             'o': o_net
         }
+        self.device = next(p_net.parameters()).device
 
     def train(self, mode: bool = True):
         self.training = mode
@@ -24,6 +25,14 @@ class MTCNNModel(DevModel):
 
     def eval(self):
         self.train(mode=False)
+
+    def to(
+            self,
+            device,
+    ):
+        self.device = device
+        for _, net in self.net_map.items():
+            net.to(device)
 
     def forward(
             self,

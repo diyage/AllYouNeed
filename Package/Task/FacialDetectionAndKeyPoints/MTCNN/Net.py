@@ -79,7 +79,7 @@ class PNet(BaseNet):
         # detection
         self.cls = nn.Sequential(OrderedDict([
             ('conv4-1', nn.Conv2d(32, 2, kernel_size=1, stride=1)),
-            ('softmax', nn.Softmax(1))
+            # ('softmax', nn.Softmax(1))
         ]))
         # bounding box regresion
         self.box_offset = nn.Sequential(OrderedDict([
@@ -135,7 +135,7 @@ class RNet(BaseNet):
         # detection
         self.cls = nn.Sequential(OrderedDict([
             ('conv5-1', nn.Linear(128, 2)),
-            ('softmax', nn.Softmax(1))
+            # ('softmax', nn.Softmax(1))
         ]))
         # bounding box regression
         self.box_offset = nn.Sequential(OrderedDict([
@@ -200,7 +200,7 @@ class ONet(BaseNet):
         # detection
         self.cls = nn.Sequential(OrderedDict([
             ('conv6-1', nn.Linear(256, 2)),
-            ('softmax', nn.Softmax(1))
+            # ('softmax', nn.Softmax(1))
         ]))
         # bounding box regression
         self.box_offset = nn.Sequential(OrderedDict([
@@ -240,7 +240,8 @@ if __name__ == "__main__":
     p_net = PNet()
     r_net = RNet()
     o_net = ONet()
-    x = torch.rand(size=(128, 3, 12, 12))
+
+    x = torch.rand(size=(128, 3, 156, 48))
     o: dict = p_net(x)
     print('p-net:')
     for key, val in o.items():

@@ -49,3 +49,35 @@ Note:
 
 ---------------------------------------------------
 """
+from Package.Task.FacialDetectionAndKeyPoints.MTCNN import *
+from Demo.mtcnn.other.config import MTCNNConfig
+from Demo.mtcnn.other.helper import MTCNNHelper
+
+
+p_net, r_net, o_net, = PNet(), RNet(), ONet()
+
+config = MTCNNConfig()
+config.train_config.device = 'cuda:0'
+
+model = MTCNNModel(
+    p_net,
+    r_net,
+    o_net
+)
+model.to(config.train_config.device)
+
+
+helper = MTCNNHelper(
+    model,
+    config
+)
+
+
+helper.config.train_config.num_workers = 2
+helper.config.train_config.batch_size = 8
+
+
+helper.train_x_net(train_net_type='p')
+helper.train_x_net(train_net_type='r')
+helper.train_x_net(train_net_type='o')
+
