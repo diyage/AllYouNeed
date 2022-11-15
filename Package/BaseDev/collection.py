@@ -78,26 +78,37 @@ class ThirdLevelCollection:
 
     def at(
             self,
-            epoch_id: str,
+            epoch_id: typing.Union[str, int],
     ) -> SecondLevelCollection:
+        if isinstance(epoch_id, int):
+            epoch_id = str(epoch_id)
+
         return self._store_info[epoch_id]
 
     def put_info(
             self,
-            epoch_id: str,
-            batch_id: str,
+            epoch_id: typing.Union[str, int],
+            batch_id: typing.Union[str, int],
             info_key: str,
             info: typing.Union[int, float]
     ):
+        if isinstance(epoch_id, int):
+            epoch_id = str(epoch_id)
+
+        if isinstance(batch_id, int):
+            batch_id = str(batch_id)
+
         if self._store_info.get(epoch_id) is None:
             self._store_info[epoch_id] = SecondLevelCollection()
         self._store_info[epoch_id].put_info(batch_id, info_key, info)
 
     def get_info(
             self,
-            epoch_id: str,
+            epoch_id: typing.Union[str, int],
             info_key: str,
     ) -> typing.Union[int, float]:
+        if isinstance(epoch_id, int):
+            epoch_id = str(epoch_id)
 
         if self._store_info.get(epoch_id) is None:
             raise RuntimeError
@@ -113,8 +124,11 @@ class ThirdLevelCollection:
 
     def print_info(
             self,
-            epoch_id: str,
+            epoch_id: typing.Union[str, int],
     ):
+        if isinstance(epoch_id, int):
+            epoch_id = str(epoch_id)
+
         if self._store_info.get(epoch_id) is None:
             raise RuntimeError
         else:
