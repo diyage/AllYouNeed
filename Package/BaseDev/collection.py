@@ -149,6 +149,6 @@ class ThirdLevelCollection:
             print('\n Info epoch: {} --> '.format(epoch_id))
             for info_key, info_vec in info_collect_dict.items():
                 if info_key.lower().find('acc') == -1:
-                    print('\t {}: {:.5f}'.format(info_key, sum(info_vec) / len(info_vec)))
+                    print('\t {}: {:.10f}'.format(info_key, sum(info_vec) / len(info_vec)))
                 else:
                     print('\t {}: {:.2%}'.format(info_key, sum(info_vec) / len(info_vec)))
