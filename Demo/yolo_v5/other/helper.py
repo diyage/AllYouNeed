@@ -153,7 +153,7 @@ class YOLOV5Helper:
                                 self.config.train_config.max_epoch_on_detector),
                           desc='training object detector',
                           position=0):
-            if epoch in [171, 200]:
+            if epoch in [50, 100, 150]:
                 warm_optimizer.set_lr(warm_optimizer.tmp_lr * 0.1)
             loss_dict = self.trainer.train_one_epoch(
                 data_loader_train,
