@@ -4,7 +4,7 @@ from tqdm import tqdm
 import os
 from torch.utils.data import DataLoader
 from Package.Task.ObjectDetection.D2.YOLO.V5 import *
-from Package.Optimizer.WarmUp import WarmUpOptimizer, WarmUpCosineAnnealOptimizer
+from Package.Optimizer.WarmUp import WarmUpOptimizer, WarmUpAbsSineCircleOptimizer
 from Demo.yolo_v5.other.config import YOLOV5Config
 from PIL import ImageFile
 
@@ -145,18 +145,16 @@ class YOLOV5Helper:
         )
         warm_optimizer = WarmUpOptimizer(
             sgd_optimizer,
-            self.config.train_config.lr,
-            self.config.train_config.warm_up_end_epoch
+            base_lr=self.config.train_config.lr,
+            warm_up_epoch=self.config.train_config.reach_base_lr_cost_epoch
         )
 
         for epoch in tqdm(range(self.restore_epoch+1,
                                 self.config.train_config.max_epoch_on_detector),
-                          desc='training detector',
+                          desc='training object detector',
                           position=0):
-
-            if epoch in [50, 100, 150]:
+            if epoch in [171, 200]:
                 warm_optimizer.set_lr(warm_optimizer.tmp_lr * 0.1)
-
             loss_dict = self.trainer.train_one_epoch(
                 data_loader_train,
                 loss_func,
@@ -174,7 +172,7 @@ class YOLOV5Helper:
                 print_info += '{:^30}:{:^15.6f}.\n'.format(key, val)
             tqdm.write(print_info)
 
+            self.save(epoch)
             if epoch % self.config.eval_config.eval_frequency == 0 and epoch != 0:
-                self.save(epoch)
                 self.show_detect_results(data_loader_test, epoch)
                 self.eval_map(data_loader_test)

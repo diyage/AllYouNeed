@@ -107,14 +107,81 @@ class DevTool(BaseTool):
         pass
 
     @staticmethod
-    def get_grid(
-            grid_number: tuple
-    ):
-        index = torch.tensor(list(range(grid_number[0])), dtype=torch.float32)
-        grid_r, grid_c = torch.meshgrid(index, index)
-        grid = torch.cat((grid_c.unsqueeze(-1), grid_r.unsqueeze(-1)), dim=-1)
-        # H * W * 2
+    def get_grid(grid_num: tuple):
+        nx, ny = grid_num
+        x = [i for i in range(nx)]
+        y = [i for i in range(ny)]
+        xv, yv = np.meshgrid(x, y)
+        xv_tensor = torch.tensor(xv, dtype=torch.float32)
+        yv_tensor = torch.tensor(yv, dtype=torch.float32)
+        grid = torch.cat((xv_tensor.unsqueeze(-1), yv_tensor.unsqueeze(-1)), dim=-1)
         return grid
+
+    # @staticmethod
+    # def get_grid(
+    #         grid_number: tuple
+    # ):
+    #     index = torch.tensor(list(range(grid_number[0])), dtype=torch.float32)
+    #     grid_r, grid_c = torch.meshgrid(index, index)
+    #     grid = torch.cat((grid_c.unsqueeze(-1), grid_r.unsqueeze(-1)), dim=-1)
+    #     # H * W * 2
+    #     return grid
+
+    @staticmethod
+    def o_iou_one_to_one(
+            box_a: np.ndarray,
+            box_b: np.ndarray
+    ) -> np.ndarray:
+        """
+
+        :param box_a: shape [N, 4]
+        :param box_b: shape [N, 4]
+        :return: shape[N,]
+        """
+        assert box_a.shape[0] == box_b.shape[0]
+        iou = DevTool.iou(
+            torch.from_numpy(box_a),
+            torch.from_numpy(box_b)
+        )
+        return iou.view(-1, ).numpy()
+
+    @staticmethod
+    def o_iou_one_to_more(
+            box_a: np.ndarray,
+            box_b: np.ndarray
+    ) -> np.ndarray:
+        """
+
+        :param box_a: shape [4,]
+        :param box_b: shape [N, 4]
+        :return: shape[N, ]
+        """
+        assert len(box_a.shape) == 1
+        iou = DevTool.iou(
+            torch.from_numpy(box_a).unsqueeze(dim=0).expand(size=(box_b.shape[0], box_b.shape[1])),
+            torch.from_numpy(box_b)
+        )
+        return iou.view(-1, ).numpy()
+
+    @staticmethod
+    def o_iou_more_to_more(
+            box_a: np.ndarray,
+            box_b: np.ndarray
+    ) -> np.ndarray:
+        """
+
+        :param box_a: shape [M, 4]
+        :param box_b: shape [N, 4]
+        :return: shape[M, N]
+        """
+        m = box_a.shape[0]
+        tmp = []
+        for i in range(m):
+            res = DevTool.o_iou_one_to_more(box_a[i], box_b)
+            tmp.append(res)
+        return np.array(
+            tmp,
+        )
 
     @staticmethod
     def iou(

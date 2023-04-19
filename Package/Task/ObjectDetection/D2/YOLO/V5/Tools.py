@@ -396,3 +396,31 @@ class YOLOV5Tool(DevTool):
         twh = torch.log(w_h * grid_number[0] / pre_wh.expand_as(w_h) + 1e-20)
 
         return torch.cat((txy_sigmoid, twh), dim=-1)
+
+    @staticmethod
+    def compute_adaptive_anchor_box_wh(
+            data_loader,
+            image_size: int,
+            n_clusters: int = 9
+    ) -> list:
+        from sklearn.cluster import KMeans
+        from tqdm import tqdm
+        from functools import cmp_to_key
+
+        print("Collecting bbox wight and height...")
+        bbox_wh = []
+        for _, (_, label) in enumerate(tqdm(data_loader)):
+            for now_img_obj_s in label:
+                for obj in now_img_obj_s:
+                    _, x1, y1, x2, y2 = obj
+                    bbox_wh.append([1.0*(x2-x1)/image_size, 1.0*(y2-y1)/image_size])
+
+        bbox_wh = np.array(bbox_wh, dtype=np.float32)
+        print("done...")
+
+        print("compute adaptive anchor box_wh using k-means")
+        km = KMeans(n_clusters=n_clusters)
+        km.fit(bbox_wh)
+        adaptive_anchor_wh = km.cluster_centers_.tolist()
+        adaptive_anchor_wh = sorted(adaptive_anchor_wh, key=cmp_to_key(lambda x, y: x[0]*x[1]-y[0]*y[1]))
+        return adaptive_anchor_wh

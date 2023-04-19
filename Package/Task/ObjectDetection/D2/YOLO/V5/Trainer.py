@@ -4,7 +4,7 @@ from tqdm import tqdm
 from .Model import YOLOV5Model
 from .Tools import YOLOV5Tool
 from Package.Task.ObjectDetection.D2.Dev import DevTrainer
-from Package.Optimizer.WarmUp import WarmUpOptimizer, WarmUpCosineAnnealOptimizer
+from Package.Optimizer.WarmUp import WarmUpOptimizer, WarmUpCosineAnnealOptimizer, WarmUpAbsSineCircleOptimizer
 from typing import Union
 
 
@@ -63,7 +63,7 @@ class YOLOV5Trainer(DevTrainer):
             self,
             data_loader_train: DataLoader,
             loss_func: nn.Module,
-            optimizer: Union[WarmUpOptimizer, WarmUpCosineAnnealOptimizer],
+            optimizer: Union[WarmUpOptimizer, WarmUpCosineAnnealOptimizer, WarmUpAbsSineCircleOptimizer],
             desc: str = '',
             now_epoch: int = 0,
     ):

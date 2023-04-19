@@ -56,12 +56,13 @@ class YOLOV5DataSetConfig:
 
 class YOLOV5TrainConfig:
     max_epoch_on_detector = 500
-    num_workers: int = 4
+    num_workers: int = 8
     device: str = 'cuda:0'
     batch_size = 32
     lr: float = 1e-3
-    warm_up_end_epoch: int = 5
-    # use_mosaic: bool = True
+    reach_base_lr_cost_epoch: int = 2
+
+    use_mosaic: bool = True
     # use_mixup: bool = True
 
     weight_position: float = 1.0
