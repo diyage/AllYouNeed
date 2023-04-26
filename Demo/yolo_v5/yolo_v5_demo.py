@@ -13,9 +13,15 @@ if __name__ == '__main__':
 
     config = YOLOV5Config()
     config.train_config.device = 'cuda:{}'.format(GPU_ID)
-
+    config.train_config.num_workers = 8
     net = YOLOV5Model(3, 32, len(config.data_config.kinds_name), single_anchor_num=config.data_config.single_an)
-
+    config.train_config.use_mosaic = False
+    """
+    if you set config.train_config.use_mosaic as True,
+    the training time will be too long (fitting status will cost huge time),
+    so I suggest -- set it as False 
+    
+    """
     net.to(config.train_config.device)
 
     """
@@ -53,7 +59,7 @@ if __name__ == '__main__':
         trans_form=trans_train,
         batch_size=config.train_config.batch_size,
         num_workers=config.train_config.num_workers,
-
+        use_mosaic=config.train_config.use_mosaic
     )
     coco_test_loader = get_coco_data_loader(
         config.data_config.root_path,
@@ -63,13 +69,13 @@ if __name__ == '__main__':
         trans_form=trans_test,
         batch_size=config.train_config.batch_size,
         num_workers=config.train_config.num_workers,
-
+        use_mosaic=False
     )
 
     helper = YOLOV5Helper(
         net,
         config,
-        restore_epoch=10
+        restore_epoch=-1
     )
 
     helper.go(coco_train_loader, coco_test_loader)
