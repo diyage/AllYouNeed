@@ -21,7 +21,7 @@ class YOLOVXLoss(DevLoss):
         self.weight_conf_has_obj = weight_conf_has_obj
         self.weight_conf_no_obj = weight_conf_no_obj
         self.weight_cls_prob = weight_cls_prob
-        self.bce = nn.BCELoss()
+        self.bce = nn.BCEWithLogitsLoss()
 
     def change_image_wh(
             self,

@@ -12,8 +12,10 @@ from Package.Task.ObjectDetection.D2.YOLO.VX import *
 from Demo.yolo_vx.other import *
 from PIL import ImageFile
 import albumentations as alb
+import torch.nn as nn
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 
 if __name__ == '__main__':
     GPU_ID = 0
@@ -21,6 +23,7 @@ if __name__ == '__main__':
     config = YOLOVXConfig()
     config.train_config.device = 'cuda:{}'.format(GPU_ID)
     config.train_config.num_workers = 8
+    config.train_config.batch_size = 8
     net = YOLOVXModel(
         YOLOVXPanFpn(),
         cls_num=len(config.data_config.kinds_name),
@@ -28,7 +31,10 @@ if __name__ == '__main__':
     )
 
     net.to(config.train_config.device)
-
+    net = nn.DataParallel(
+        net,
+        device_ids=[0, 1]
+    )
     """
             get data
     """
@@ -58,23 +64,25 @@ if __name__ == '__main__':
 
     coco_train_loader = get_coco_data_loader(
         config.data_config.root_path,
-        ['2014', '2017'],
+        config.data_config.years,
         train=True,
         image_size=config.data_config.image_size,
         trans_form=trans_train,
         batch_size=config.train_config.batch_size,
         num_workers=config.train_config.num_workers,
-        use_mosaic=config.train_config.use_mosaic
+        use_mosaic=config.train_config.use_mosaic,
+        use_label_type=config.data_config.use_label_type
     )
     coco_test_loader = get_coco_data_loader(
         config.data_config.root_path,
-        ['2014', '2017'],
+        config.data_config.years,
         train=False,
         image_size=config.data_config.image_size,
         trans_form=trans_test,
         batch_size=config.train_config.batch_size,
         num_workers=config.train_config.num_workers,
-        use_mosaic=False
+        use_mosaic=False,
+        use_label_type=config.data_config.use_label_type
     )
 
     helper = YOLOVXHelper(
@@ -83,6 +91,6 @@ if __name__ == '__main__':
         restore_epoch=-1
     )
 
-    helper.go(coco_train_loader, coco_test_loader)
+    helper.go(coco_test_loader, coco_test_loader)
 
 

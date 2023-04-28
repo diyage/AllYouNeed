@@ -26,6 +26,25 @@ KINDS_NAME = {
     88: 'teddy bear', 89: 'hair drier', 90: 'toothbrush'
 }
 
+kinds_name: List[str] = [
+        'person', 'bicycle', 'car', 'motorcycle',
+        'airplane', 'bus', 'train', 'truck', 'boat',
+        'traffic light', 'fire hydrant', 'stop sign',
+        'parking meter', 'bench', 'bird', 'cat', 'dog',
+        'horse', 'sheep', 'cow', 'elephant', 'bear',
+        'zebra', 'giraffe', 'backpack', 'umbrella',
+        'handbag', 'tie', 'suitcase', 'frisbee', 'skis',
+        'snowboard', 'sports ball', 'kite', 'baseball bat',
+        'baseball glove', 'skateboard', 'surfboard',
+        'tennis racket', 'bottle', 'wine glass',
+        'cup', 'fork', 'knife', 'spoon', 'bowl', 'banana', 'apple', 'sandwich',
+        'orange', 'broccoli', 'carrot', 'hot dog', 'pizza', 'donut',
+        'cake', 'chair', 'couch', 'potted plant', 'bed', 'dining table',
+        'toilet', 'tv', 'laptop', 'mouse', 'remote', 'keyboard',
+        'cell phone', 'microwave', 'oven', 'toaster', 'sink', 'refrigerator',
+        'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
+    ]
+
 
 class COCODataSet(Dataset):
     def __init__(
@@ -36,6 +55,7 @@ class COCODataSet(Dataset):
             image_size: int,
             transform: alb.Compose,
             use_mosaic: bool = True,
+            use_label_type: bool = False
     ):
         super().__init__()
         self.root = root
@@ -48,6 +68,7 @@ class COCODataSet(Dataset):
         self.use_mosaic = use_mosaic
         print('\nUse COCO --> years:{} | train: {} | total images num:{}\n'.format(years, train, len(self.info)))
         self.img_cache = [None]*len(self.info)
+        self.use_label_type = use_label_type
         """
         img_cache used for decreasing time of loading data
         """
@@ -72,7 +93,17 @@ class COCODataSet(Dataset):
         new_image = res.get('image')
         new_obj_vec = res.get('bboxes')
 
-        new_obj_vec = [[KINDS_NAME[obj[-1]], *(obj[:-1])] for obj in new_obj_vec]
+        if self.use_label_type:
+            """
+            注意这里，kind_ind 应该从0 开始，所以下标都要减去1
+            """
+            new_obj_vec = [
+                (kinds_name.index(KINDS_NAME[obj[-1]]), tuple(obj[:-1])) for obj in new_obj_vec
+            ]
+        else:
+            new_obj_vec = [
+                [KINDS_NAME[obj[-1]], *(obj[:-1])] for obj in new_obj_vec
+            ]
 
         return new_image, new_obj_vec
 
@@ -232,7 +263,8 @@ def get_coco_data_loader(
         trans_form: alb.Compose = None,
         batch_size: int = 8,
         num_workers: int = 4,
-        use_mosaic: bool = True
+        use_mosaic: bool = True,
+        use_label_type: bool = False,
 ):
     data_set = COCODataSet(
         root,
@@ -240,7 +272,8 @@ def get_coco_data_loader(
         train,
         image_size,
         trans_form,
-        use_mosaic
+        use_mosaic,
+        use_label_type
     )
 
     data_loader = DataLoader(

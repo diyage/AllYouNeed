@@ -84,16 +84,16 @@ class YOLOVXPredictor(BasePredictor):
     ) -> KPS_VEC:
 
         position = output[..., :4].clamp(0, self.image_size - 1)  # shape [box_num, 4]
-        conf = output[..., 4]  # shape [box_num, ]
-        cls = output[..., 5:]  # shape [box_num, cls_num]
+        conf = torch.sigmoid(output[..., 4])  # shape [box_num, ]
+        cls = torch.sigmoid(output[..., 5:])  # shape [box_num, cls_num]
 
         _, cls_num = cls.shape
-        score = cls * conf
+        score = cls * conf.unsqueeze(dim=-1)
         scores_max_value, scores_max_index = score.max(dim=-1)  # shape [box_num, ]
 
         th_mask = (conf > self.conf_th) & (scores_max_value > self.score_th)
         res = []
-        for cls_ind in range(len(cls_num)):
+        for cls_ind in range(cls_num):
             cls_mask = scores_max_index == cls_ind  # shape [box_num, ]
             box_mask = th_mask & cls_mask
 
@@ -118,10 +118,10 @@ class YOLOVXPredictor(BasePredictor):
             self,
             outputs: torch.Tensor
     ) -> List[KPS_VEC]:
-        assert len(outputs) == 3
+        assert len(outputs.shape) == 3
         batch_size = outputs.shape[0]
         res = []
-        for batch_ind in range(len(batch_size)):
+        for batch_ind in range(batch_size):
             res.append(
                 self.__process_one_predict(outputs[batch_ind])
             )

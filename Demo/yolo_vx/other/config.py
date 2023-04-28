@@ -9,6 +9,7 @@ class YOLOVXDataSetConfig:
     # data set root dir
     image_size: int = 640
     image_shrink_rate: Tuple[int, int, int] = (8, 16, 32)
+    use_label_type: bool = True
 
     kinds_name: List[str] = [
         'person', 'bicycle', 'car', 'motorcycle',

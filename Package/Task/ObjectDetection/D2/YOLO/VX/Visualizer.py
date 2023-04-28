@@ -83,19 +83,12 @@ class YOLOVXVisualizer(BaseVisualizer):
     ):
         os.makedirs(saved_dir, exist_ok=True)
 
-        max_batch = len(data_loader_test)
-        random_batch = np.random.choice(
-            [ind for ind in range(max_batch)],
-            size=(10, ),
-            replace=False
-        ).tolist()
-
         for batch_id, val in enumerate(tqdm(data_loader_test, desc=desc, position=0)):
             images: torch.Tensor = val[0]
             labels: List[LABEL] = val[1]
 
-            if batch_id not in random_batch:
-                continue
+            if batch_id >= 10:
+                break
 
             self.model.eval()
             images = images.to(self.device)

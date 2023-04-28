@@ -102,13 +102,6 @@ class YOLOVXHelper:
             data_loader_test: DataLoader,
     ):
         pass
-        # raise RuntimeError('This method has not been implemented!')
-        # with torch.no_grad():
-        #     self.my_evaluator.eval_map(
-        #         data_loader_test,
-        #         desc='[eval detector mAP]',
-        #         use_07_metric=self.config.eval_config.use_07_metric
-        #     )
 
     def go(
             self,

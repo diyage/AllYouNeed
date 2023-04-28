@@ -110,9 +110,9 @@ class YOLOVXModel(DevModel):
         由于 YOLO 的一些较新的作品都采用了iou loss，因此，后续我的代码里将直接解码box
         """
         super().__init__(back_bone)
-        self.head_list = [
+        self.head_list = nn.ModuleList(
             YOLOVXDecoupledHead(channel, feature_mapping, cls_num) for channel in feature_channel
-        ]
+        )
         self.image_shrink_rate = image_shrink_rate
 
     def forward(
