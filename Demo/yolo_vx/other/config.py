@@ -86,6 +86,33 @@ class YOLOVXConfig:
     show_config = YOLOVXVisualizationConfig()
     lr_mapping: Dict[int, Dict[int, float]] = {}
 
+    def init_lr_mapping(
+            self,
+            max_epoch: int,
+            max_batch: int,
+            reach_base_lr_cost_epoch: int,
+            base_lr: float,
+    ):
+        lr_mapping = {
+            epoch: {} for epoch in range(max_epoch)
+        }
+        lr = np.linspace(
+            0,
+            base_lr,
+            num=max_batch * reach_base_lr_cost_epoch
+        ).tolist() + np.linspace(
+            base_lr,
+            0,
+            num=max_batch * (max_epoch - reach_base_lr_cost_epoch)
+        ).tolist()
+        for epoch in range(max_epoch):
+            for batch in range(max_batch):
+                lr_mapping[epoch][batch] = lr[batch + epoch * max_batch]
+
+        self.set_lr_mapping(
+            lr_mapping
+        )
+
     def set_lr_mapping(
             self,
             new_lr_mapping: Dict[int, Dict[int, float]]

@@ -84,13 +84,18 @@ if __name__ == '__main__':
         use_mosaic=False,
         use_label_type=config.data_config.use_label_type
     )
-
+    config.init_lr_mapping(
+        config.train_config.max_epoch_on_detector,
+        len(coco_train_loader),
+        config.train_config.reach_base_lr_cost_epoch,
+        config.train_config.lr,
+    )
     helper = YOLOVXHelper(
         net,
         config,
         restore_epoch=-1
     )
 
-    helper.go(coco_test_loader, coco_test_loader)
+    helper.go(coco_train_loader, coco_test_loader)
 
 
