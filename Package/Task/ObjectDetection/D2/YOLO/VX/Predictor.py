@@ -98,17 +98,19 @@ class YOLOVXPredictor(BasePredictor):
             box_mask = th_mask & cls_mask
 
             position_ = position[box_mask]
-            score_ = score[box_mask]
+            # score_ = score[box_mask]
+            # be careful here, we just need score max value not the natural score
+            scores_max_value_ = scores_max_value[box_mask]
 
             keep_ind = self.nms_iou(
                 position_,
-                score_
+                scores_max_value_
             )
             res += [
                 (
                     cls_ind,
                     tuple(position_[ind].cpu().detach().numpy().tolist()),
-                    score_[ind].item()
+                    scores_max_value_[ind].item()
                 ) for ind in keep_ind
             ]
 
