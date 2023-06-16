@@ -26,6 +26,23 @@ KINDS_NAME = {
     88: 'teddy bear', 89: 'hair drier', 90: 'toothbrush'
 }
 
+NAMES_KIND = {
+    'person': 1, 'bicycle': 2, 'car': 3, 'motorcycle': 4, 'airplane': 5,
+    'bus': 6, 'train': 7, 'truck': 8, 'boat': 9, 'traffic light': 10,
+    'fire hydrant': 11, 'stop sign': 13, 'parking meter': 14, 'bench': 15,
+    'bird': 16, 'cat': 17, 'dog': 18, 'horse': 19, 'sheep': 20, 'cow': 21,
+    'elephant': 22, 'bear': 23, 'zebra': 24, 'giraffe': 25, 'backpack': 27,
+    'umbrella': 28, 'handbag': 31, 'tie': 32, 'suitcase': 33, 'frisbee': 34,
+    'skis': 35, 'snowboard': 36, 'sports ball': 37, 'kite': 38, 'baseball bat': 39,
+    'baseball glove': 40, 'skateboard': 41, 'surfboard': 42, 'tennis racket': 43, 'bottle': 44,
+    'wine glass': 46, 'cup': 47, 'fork': 48, 'knife': 49, 'spoon': 50, 'bowl': 51, 'banana': 52,
+    'apple': 53, 'sandwich': 54, 'orange': 55, 'broccoli': 56, 'carrot': 57, 'hot dog': 58, 'pizza': 59,
+    'donut': 60, 'cake': 61, 'chair': 62, 'couch': 63, 'potted plant': 64, 'bed': 65, 'dining table': 67,
+    'toilet': 70, 'tv': 72, 'laptop': 73, 'mouse': 74, 'remote': 75, 'keyboard': 76, 'cell phone': 77,
+    'microwave': 78, 'oven': 79, 'toaster': 80, 'sink': 81, 'refrigerator': 82, 'book': 84, 'clock': 85,
+    'vase': 86, 'scissors': 87, 'teddy bear': 88, 'hair drier': 89, 'toothbrush': 90
+}
+
 kinds_name: List[str] = [
         'person', 'bicycle', 'car', 'motorcycle',
         'airplane', 'bus', 'train', 'truck', 'boat',
@@ -55,23 +72,32 @@ class COCODataSet(Dataset):
             image_size: int,
             transform: alb.Compose,
             use_mosaic: bool = True,
-            use_label_type: bool = False
+            use_label_type: bool = False,
+            use_mix_up: bool = True,
+            mix_up_lambda: float = 0.5,
     ):
+
         super().__init__()
         self.root = root
         self.years = years
         self.train = train
         self.image_size = image_size
         self.transform = transform
-        self.info = self.get_info()
+
+        self.img_id_to_info = self.get_info()
+        # img_id  --> [img_path, [[x1, y1, x2, y2, cat_id], ... , ]]
+
+        self.info = list(self.img_id_to_info.values())
         self.all_index = list(range(len(self.info)))
         self.use_mosaic = use_mosaic
         print('\nUse COCO --> years:{} | train: {} | total images num:{}\n'.format(years, train, len(self.info)))
-        self.img_cache = [None]*len(self.info)
+
         self.use_label_type = use_label_type
         """
         img_cache used for decreasing time of loading data
         """
+        self.use_mix_up = use_mix_up
+        self.mix_up_lambda = mix_up_lambda
 
     def pull_an_image_label(
             self,
@@ -80,6 +106,46 @@ class COCODataSet(Dataset):
         img_path, bbox_kind_id_list = self.info[index]
 
         img = cv2.imread(img_path)
+
+        if self.use_mix_up and np.random.randint(0, 4) == 0:
+            other_index = self.all_index[:index] + self.all_index[index + 1:]
+            another_index = np.random.choice(other_index, size=(1,), replace=False).tolist()[0]
+            another_img_path, another_bbox_kind_id_list = self.info[another_index]
+
+            another_img = cv2.imread(another_img_path)
+            a, b, _ = img.shape
+            m, n, _ = another_img.shape
+
+            scale_rate = min(1.0 * b / n, 1.0 * a / m)
+            scale_rate = np.random.uniform(0, scale_rate)
+
+            if scale_rate < 0.1:
+                return img, bbox_kind_id_list
+
+            img_ = cv2.resize(another_img, dsize=None, fx=scale_rate, fy=scale_rate)
+            h_, w_, _ = img_.shape
+
+            delta_h = a - h_
+            delta_w = b - w_
+            if delta_h <= 0 or delta_w <= 0:
+                return img, bbox_kind_id_list
+
+            offset_y = np.random.randint(0, delta_h)
+            offset_x = np.random.randint(0, delta_w)
+
+            img[offset_y:offset_y+h_, offset_x: offset_x+w_, :] = self.mix_up_lambda * img[offset_y:offset_y+h_, offset_x: offset_x+w_, :] + (1.0-self.mix_up_lambda) * img_
+            img = img.astype(np.uint8)
+
+            for obj in bbox_kind_id_list:
+                tmp = [
+                    min(obj[0] * scale_rate + offset_x, b-1),
+                    min(obj[1] * scale_rate + offset_y, a-1),
+                    min(obj[2] * scale_rate + offset_x, b-1),
+                    min(obj[3] * scale_rate + offset_y, a-1),
+                    obj[4]
+                ]
+                if tmp[2] - tmp[0] > 1 and tmp[3] - tmp[1] > 1:
+                    bbox_kind_id_list.append(tmp)
 
         return img, bbox_kind_id_list
 
@@ -131,6 +197,19 @@ class COCODataSet(Dataset):
 
         return new_image, new_obj_vec
 
+    @staticmethod
+    def resize(
+            img: np.ndarray,
+            bbox_kind_id_list: list,
+            scale_rate: float = 1.0
+    ):
+        img = cv2.resize(img, fx=scale_rate, fy=scale_rate, dsize=None)
+        for i in range(len(bbox_kind_id_list)):
+            for j in range(4):
+                bbox_kind_id_list[i][j] *= scale_rate
+
+        return img, bbox_kind_id_list
+
     def pull_mosaic_image_label(
             self,
             index: int
@@ -165,6 +244,9 @@ class COCODataSet(Dataset):
                 img = all_images[img_pos]
                 bbox_kind_id_list = all_bbox_kind_id_list[img_pos]
 
+                random_scale_rate = np.random.random() * 0.3 + 0.7  # [0.7, 1.0)
+                img, bbox_kind_id_list = self.resize(img, bbox_kind_id_list, random_scale_rate)
+
                 img_h, img_w, _ = img.shape
 
                 shift_h = r * max_h + int(np.random.random() * (max_h - img_h))
@@ -185,7 +267,7 @@ class COCODataSet(Dataset):
 
     def get_info(
             self
-    ) -> List:
+    ) -> dict:
 
         image_id_to_path_and_bbox_kind_id = {}
         train_or_val = 'train' if self.train else 'val'
@@ -229,7 +311,7 @@ class COCODataSet(Dataset):
                         ]
                     )
 
-        return list(image_id_to_path_and_bbox_kind_id.values())
+        return image_id_to_path_and_bbox_kind_id
 
     def __len__(self):
         return len(self.info)
@@ -265,6 +347,8 @@ def get_coco_data_loader(
         num_workers: int = 4,
         use_mosaic: bool = True,
         use_label_type: bool = False,
+        use_mix_up: bool = True,
+        mix_up_lambda: float = 0.5,
 ):
     data_set = COCODataSet(
         root,
@@ -273,7 +357,9 @@ def get_coco_data_loader(
         image_size,
         trans_form,
         use_mosaic,
-        use_label_type
+        use_label_type,
+        use_mix_up,
+        mix_up_lambda
     )
 
     data_loader = DataLoader(
@@ -294,7 +380,7 @@ def debug_pull_img():
         # alb.ColorJitter(),
         # alb.Blur(3),
         alb.HorizontalFlip(),
-        alb.Rotate(limit=(-30, 30), p=1.0),
+        alb.Resize(640, 640),
         # alb.RandomResizedCrop(
         #     416,
         #     416,
@@ -307,10 +393,11 @@ def debug_pull_img():
     ], bbox_params=alb.BboxParams(format='pascal_voc'))
     coco = COCODataSet(
         '/home/dell/data/DataSet/COCO/',
-        years=['2014'],
+        years=['2017'],
         train=True,
-        image_size=608,
-        transform=trans
+        image_size=640,
+        transform=trans,
+        use_mix_up=True,
     )
     img, bbox_kind_id_list = coco.pull_an_image_label(300)
     print(bbox_kind_id_list)
@@ -341,14 +428,16 @@ def debug_pull_mosaic():
         # ),
 
         # alb.GaussNoise(var_limit=(60, 150), p=1),
+        alb.Resize(640, 640),
 
     ], bbox_params=alb.BboxParams(format='pascal_voc'))
     coco = COCODataSet(
         '/home/dell/data/DataSet/COCO/',
-        years=['2014'],
+        years=['2017'],
         train=True,
-        image_size=608,
-        transform=trans
+        image_size=640,
+        transform=trans,
+        use_mix_up=True
     )
     img, bbox_kind_id_list = coco.pull_mosaic_image_label(300)
     print(bbox_kind_id_list)
@@ -364,9 +453,9 @@ def debug_pull_mosaic():
 
 def debug_loader():
     root = '/home/dell/data/DataSet/COCO/'
-    years = ['2014', '2017']
-    train = True
-    image_size = 608
+    years = ['2017']
+    train = False
+    image_size = 640
     mean = [0.5, 0.5, 0.5]
     std = [0.5, 0.5, 0.5]
 
@@ -399,16 +488,20 @@ def debug_loader():
         train,
         image_size,
         trans,
-        batch_size=16,
-        num_workers=4
+        batch_size=24,
+        num_workers=8,
+        use_mosaic=True,
+        use_label_type=True,
+        use_mix_up=True,
     )
-    # for batch_id, res in enumerate(loader):
-    #     img_tensor, label_list = res
-    #     # print(label_list)
-    #     print(batch_id)
+    from tqdm import tqdm
+    for batch_id, res in enumerate(tqdm(loader)):
+        img_tensor, label_list = res
+        # print(label_list)
+        # print(batch_id)
 
 
 if __name__ == '__main__':
     print("\nDeBUG:\n")
-    # debug_loader()
-    debug_pull_mosaic()
+    debug_loader()
+    # debug_pull_mosaic()

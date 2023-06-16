@@ -58,6 +58,7 @@ class DevEvaluator(BaseEvaluator):
     """
     for eval map
     """
+
     @staticmethod
     def iou_score(bboxes_a, bboxes_b):
         """
@@ -434,3 +435,167 @@ class DevEvaluator(BaseEvaluator):
         print('\nmAP:{:.2%}'.format(np.mean(ap_vec)))
 
     #######################################################################################
+
+
+class FinalEvaluator(BaseEvaluator):
+    def __init__(
+            self,
+    ):
+        super().__init__()
+
+    @abstractmethod
+    def convert_info_for_metrics(
+            self,
+            data_loader: DataLoader,
+            desc: str = 'convert info for metrics',
+    ):
+        raise RuntimeError(
+            "You must implement this method to convert predicts and labels to special format for computing metrics!"
+        )
+
+    def get_all_ap(
+            self,
+            data_loader: DataLoader,
+            iou_th_list: list,
+            kind_ind_vec: list,
+    ) -> list:
+        with torch.no_grad():
+            pre, gt = self.convert_info_for_metrics(data_loader)
+
+        predicts_for_compute_metrics = np.array(pre, dtype=np.float32)
+        gt_for_compute_metrics = np.array(gt, dtype=np.float32)
+
+        res = []
+
+        for iou_th in tqdm(
+                iou_th_list,
+                desc="compute ap for each kind",
+                position=0
+        ):
+            ap_vec = self.compute_ap_for_each_kind(
+                predicts_for_compute_metrics,
+                gt_for_compute_metrics,
+                kind_ind_vec,
+                iou_th,
+                eps=1e-8
+            )
+            res.append(ap_vec)
+
+        return res
+
+    @staticmethod
+    def compute_iou_one_to_more(
+            pre_box: np.ndarray,
+            gt_boxes: np.ndarray,
+            eps: float = 1e-8
+    ) -> np.ndarray:
+        assert len(pre_box.shape) == 1 and len(gt_boxes.shape) == 2
+        pre_boxes = np.expand_dims(pre_box, axis=0)  # (1, 4)
+
+        pre_x1y1 = pre_boxes[:, 0:2]
+        pre_x2y2 = pre_boxes[:, 2:4]
+        pre_wh = np.clip(pre_x2y2 - pre_x1y1, 0.0, np.inf)
+        pre_area = np.prod(pre_wh, axis=-1)  # (1, )
+
+        gt_x1y1 = gt_boxes[:, 0:2]
+        gt_x2y2 = gt_boxes[:, 2:4]
+        gt_wh = np.clip(gt_x2y2 - gt_x1y1, 0.0, np.inf)
+        gt_area = np.prod(gt_wh, axis=-1)  # (n, )
+
+        inner_x1y1 = np.maximum(pre_x1y1, gt_x1y1)
+        inner_x2y2 = np.minimum(pre_x2y2, gt_x2y2)
+        inner_wh = np.clip(inner_x2y2 - inner_x1y1, 0.0, np.inf)
+        inner_area = np.prod(inner_wh, axis=-1)  # (n, )
+
+        return inner_area / (np.clip((gt_area + pre_area - inner_area), 0.0, np.inf) + eps)
+
+    @staticmethod
+    def compute_ap_for_each_kind(
+            predicts_for_compute_metrics: np.ndarray,
+            gt_for_compute_metrics: np.ndarray,
+            kind_ind_vec: list,
+            iou_th: float = 0.5,
+            eps: float = 1e-8
+    ):
+        # img_ind, box_ind, cls_ind, x1, y1, x2, y2, score
+
+        res = []
+        gt_box_has_not_used = {}
+        """
+        逐类别计算AP
+        """
+        for cls_ind in kind_ind_vec:
+            """
+            获取同一个类别的预测
+            """
+            if len(predicts_for_compute_metrics) == 0:
+                res.append(0.0)
+                continue
+
+            p = predicts_for_compute_metrics[predicts_for_compute_metrics[:, 2] == cls_ind]
+            sort_score_ind = np.argsort(
+                p[:, -1]
+            )[::-1]
+            p = p[sort_score_ind]
+            g = gt_for_compute_metrics[gt_for_compute_metrics[:, 2] == cls_ind]
+
+            if p.shape[0] == 0 or g.shape[0] == 0:
+                res.append(0.0)
+                continue
+
+            """
+            开始计算AP
+            """
+            tp = np.zeros(shape=(p.shape[0],), dtype=np.float32)
+            fp = np.zeros(shape=(p.shape[0],), dtype=np.float32)
+
+            for i in range(p.shape[0]):
+                img_ind = p[i, 0]  # just one element
+                pre_box = p[i, 3:7]  # (4, )
+                """
+                只在同一张图片中计算
+                """
+                g_ = g[g[:, 0] == img_ind]  # (n, 8)
+
+                if g_.shape[0] == 0:
+                    fp[i] = 1.0
+                else:
+                    gt_boxes = g_[:, 3:7]  # (n, 4)
+                    iou = FinalEvaluator.compute_iou_one_to_more(
+                        pre_box,
+                        gt_boxes,
+                        eps
+                    )  # (n, )
+                    best_iou_ind = iou.argmax()
+                    best_iou_box_ind = g_[best_iou_ind, 1]  # just one element
+
+                    if iou[best_iou_ind] >= iou_th and gt_box_has_not_used.get(best_iou_box_ind, True):
+                        gt_box_has_not_used[best_iou_box_ind] = False
+                        tp[i] = 1.0
+                    else:
+                        fp[i] = 1.0
+
+            tp_sum = np.cumsum(tp)
+            fp_sum = np.cumsum(fp)
+
+            precision = tp_sum / (tp_sum + fp_sum + eps)
+            recall = tp_sum / (g.shape[0] + eps)
+
+            precision = np.concatenate(
+                [
+                    [1.0],
+                    precision
+                ],
+                axis=0
+            )
+            recall = np.concatenate(
+                [
+                    [0.0],
+                    recall,
+                ],
+                axis=0
+            )
+            ap = np.trapz(precision, recall)
+            res.append(ap)
+
+        return res

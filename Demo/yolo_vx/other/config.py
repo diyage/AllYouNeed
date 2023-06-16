@@ -8,6 +8,19 @@ class YOLOVXDataSetConfig:
 
     # data set root dir
     image_size: int = 640
+
+    # width_height_center: list = [
+    #     [80.93151919, 115.35980124],
+    #     [218.9952542, 360.14068262],
+    #     [511.91991605, 480.48462577]
+    # ]  # this is used for voc image_size:640
+
+    width_height_center: list = [
+        [49.31695546, 64.27518682],
+        [173.54360828, 274.19121854],
+        [471.14308384, 444.86262709],
+    ]  # this is used for coco image_size:640
+
     image_shrink_rate: Tuple[int, int, int] = (8, 16, 32)
     use_label_type: bool = True
 
@@ -43,25 +56,27 @@ class YOLOVXTrainConfig:
     max_epoch_on_detector = 500
     num_workers: int = 8
     device: str = 'cuda:0'
-    batch_size = 32
+    batch_size = 16
     lr: float = 1e-3
-    reach_base_lr_cost_epoch: int = 2
+    reach_base_lr_cost_epoch: int = 5
 
     use_mosaic: bool = False
-    # use_mixup: bool = True
+    use_mix_up: bool = False
+    mix_up_lambda: float = 0.5
 
-    weight_position: float = 1.0
-    weight_conf_has_obj: float = 5.0
+    weight_position: float = 5.0
+    weight_conf_has_obj: float = 1.0
     weight_conf_no_obj: float = 1.0
+    weight_conf_obj: float = 1.0
     weight_cls: float = 1.0
 
 
 class YOLOVXEvalConfig:
-    eval_frequency = 10
+    eval_frequency = 5
     conf_th_for_eval: float = 0.0
     cls_th_for_eval: float = 0.0
     score_th_for_eval: float = 0.001
-    iou_th_for_eval: float = 0.5
+    iou_th_for_eval: float = 0.5  # used for nms
     use_07_metric: bool = False
 
 
@@ -70,7 +85,6 @@ class YOLOVXVisualizationConfig:
     conf_th_for_show: float = 0.0
     cls_th_for_show: float = 0.0
     score_th_for_show: float = 0.3
-
     iou_th_for_show: float = 0.5
 
 
@@ -108,6 +122,43 @@ class YOLOVXConfig:
         for epoch in range(max_epoch):
             for batch in range(max_batch):
                 lr_mapping[epoch][batch] = lr[batch + epoch * max_batch]
+
+        self.set_lr_mapping(
+            lr_mapping
+        )
+
+    def init_mile_stone_mapping(
+            self,
+            max_epoch: int,
+            max_batch: int,
+            reach_base_lr_cost_epoch: int,
+            base_lr: float,
+            mile_stone: list,
+            alpha: float = 0.1
+    ):
+        lr_mapping = {
+            epoch: {} for epoch in range(max_epoch)
+        }
+
+        lr = np.linspace(
+            0,
+            base_lr,
+            num=max_batch * reach_base_lr_cost_epoch
+        ).tolist()
+
+        now_lr = base_lr
+
+        for epoch in range(reach_base_lr_cost_epoch, max_epoch):
+            for batch in range(max_batch):
+
+                if epoch in mile_stone and batch == 0:
+                    now_lr *= alpha
+                lr.append(now_lr)
+
+        for epoch in range(max_epoch):
+            for batch in range(max_batch):
+                lr_mapping[epoch][batch] = lr[batch + epoch * max_batch]
+                # print("{}, {}: {:.7f}".format(epoch, batch, lr_mapping[epoch][batch]))
 
         self.set_lr_mapping(
             lr_mapping

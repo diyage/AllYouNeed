@@ -78,13 +78,14 @@ class YOLOVXPredictor(BasePredictor):
             order = order[inds + 1]
         return keep
 
-    def __process_one_predict(
+    def process_one_predict(
             self,
             output: torch.Tensor
     ) -> KPS_VEC:
 
         position = output[..., :4].clamp(0, self.image_size - 1)  # shape [box_num, 4]
         conf = torch.sigmoid(output[..., 4])  # shape [box_num, ]
+        # cls = torch.softmax(output[..., 5:], dim=-1)  # shape [box_num, cls_num]
         cls = torch.sigmoid(output[..., 5:])  # shape [box_num, cls_num]
 
         _, cls_num = cls.shape
@@ -125,6 +126,6 @@ class YOLOVXPredictor(BasePredictor):
         res = []
         for batch_ind in range(batch_size):
             res.append(
-                self.__process_one_predict(outputs[batch_ind])
+                self.process_one_predict(outputs[batch_ind])
             )
         return res

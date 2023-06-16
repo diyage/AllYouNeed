@@ -10,6 +10,7 @@ from Package.Task.ObjectDetection.D2.YOLO.VX.Model import YOLOVXModel
 from Package.Task.ObjectDetection.D2.YOLO.VX.Tools import YOLOVXTool
 from Package.Optimizer.WarmUp import WarmUpOptimizer, WarmUpCosineAnnealOptimizer, WarmUpAbsSineCircleOptimizer
 from tqdm import tqdm
+import torch
 
 
 class YOLOVXTrainer(BaseTrainer):
@@ -17,6 +18,7 @@ class YOLOVXTrainer(BaseTrainer):
             self,
             model: YOLOVXModel,
             lr_mapping: Dict[int, Dict[int, float]],
+            width_height_center,
             image_size: int = 640,
             image_shrink_rate: Tuple[int, int, int] = (8, 16, 32),
             cls_num: int = 80,
@@ -24,6 +26,7 @@ class YOLOVXTrainer(BaseTrainer):
     ):
         super().__init__()
         self.model = model
+        self.width_height_center = width_height_center
         self.lr_mapping = lr_mapping
         self.device = next(model.parameters()).device
         self.image_size = image_size
@@ -65,6 +68,7 @@ class YOLOVXTrainer(BaseTrainer):
         细粒度，这可能会对使用者要求较高，但是我比较喜欢
         """
         loss_dict_vec = {}
+        print_frequency = max(1, int(len(data_loader_train) * 0.1))
         for batch_id, (images, labels) in enumerate(tqdm(data_loader_train,
                                                          desc=desc,
                                                          position=0)):
@@ -76,21 +80,52 @@ class YOLOVXTrainer(BaseTrainer):
             self.model.train()
             images = images.to(self.device)
 
-            targets = YOLOVXTool.make_target(
+            outputs = self.model(images)
+
+            # targets = YOLOVXTool.make_target(
+            #     labels,
+            #     self.width_height_center,
+            #     self.image_size,
+            #     self.image_shrink_rate,
+            #     self.cls_num,
+            #     self.multi_positives
+            # ).to(self.device)
+
+            targets = YOLOVXTool.sim_ota_make_target(
+                outputs,
                 labels,
                 self.image_size,
                 self.image_shrink_rate,
-                self.cls_num,
-                self.multi_positives
             ).to(self.device)
 
-            loss_res = loss_func(self.model(images), targets)
+            loss_res = loss_func(outputs, targets)
+
+            # outputs = self.model(images)
+            #
+            # torch.cuda.empty_cache()
+            # targets = YOLOVXTool.sim_ota_make_target(
+            #     outputs,
+            #     labels,
+            #     self.image_size,
+            #     self.image_shrink_rate,
+            #
+            # ).to(self.device)
+            # torch.cuda.empty_cache()
+
+            # loss_res = loss_func(outputs, targets)
 
             if not isinstance(loss_res, dict):
                 raise RuntimeError(
                     'You have not use our provided loss func, please overwrite method train_detector_one_epoch'
                 )
             else:
+                if batch_id % print_frequency == 0:
+                    print()
+                    print("epoch: {}, batch: {}".format(now_epoch, batch_id))
+                    for k, v in loss_res.items():
+                        print("{}: {}".format(k, v))
+                    print()
+
                 loss = loss_res['total_loss']
                 optimizer.zero_grad()
                 loss.backward()
